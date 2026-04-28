@@ -18,9 +18,11 @@ def parse_sc2_replay_bytes(data: bytes) -> str:
         tracker_events = replay.tracker_events
 
         unitEvents = [e.__dict__ for e in tracker_events if e.name in ["UnitBornEvent", "UnitInitEvent", "UnitDiedEvent"]]
+        unitTypeChangeEvents = [e.__dict__ for e in tracker_events if e.name in ["UnitTypeChangeEvent"]]
         result = {
             "players": players,
-            "unitEvents": unitEvents
+            "unitEvents": unitEvents,
+            "unitTypeChangeEvents": unitTypeChangeEvents
         }
 
         return json.dumps(result)
