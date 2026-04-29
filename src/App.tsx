@@ -46,8 +46,8 @@ const resultJson = await pyodide.runPythonAsync(
 
 const result = JSON.parse(resultJson);
 const events = result.unitEvents;
-console.log("Parse result:", result);
-
+const unitTypes = result.unitTypes;
+console.log("Unit Types: ", unitTypes)
 
 // init pg
 type RawSc2Event = {
@@ -81,6 +81,21 @@ type RawSc2Event = {
   killing_unit?: unknown;
 
   [key: string]: unknown;
+};
+
+
+export type Sc2UnitType = {
+  id: number;
+  str_id?: string | null;
+  name?: string | null;
+  title?: string | null;
+  race?: string | null;
+  minerals?: number | null;
+  vespene?: number | null;
+  supply?: number | null;
+  is_building?: boolean | null;
+  is_worker?: boolean | null;
+  is_army?: boolean | null;
 };
 
 function cleanEvent(e: RawSc2Event) {
@@ -122,7 +137,7 @@ function cleanEvent(e: RawSc2Event) {
   };
 }
 
-async function initSchema(db: PGlite) {
+async function createEventTable(db: PGlite) {
   await db.exec(`
     CREATE TYPE sc2_event_name AS ENUM (
       'UnitBornEvent',
@@ -161,6 +176,99 @@ async function initSchema(db: PGlite) {
     CREATE INDEX sc2_events_event_name_idx ON sc2_events(event_name);
     CREATE INDEX sc2_events_unit_id_idx ON sc2_events(unit_id);
   `);
+}
+
+async function createUnitTypeTable(db: PGlite) {
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS sc2_unit_types (
+      type_id INTEGER PRIMARY KEY,
+
+      str_id TEXT,
+      name TEXT,
+      title TEXT,
+      race TEXT,
+
+      minerals INTEGER NOT NULL DEFAULT 0,
+      vespene INTEGER NOT NULL DEFAULT 0,
+      supply REAL NOT NULL DEFAULT 0,
+
+      is_building BOOLEAN NOT NULL DEFAULT FALSE,
+      is_worker BOOLEAN NOT NULL DEFAULT FALSE,
+      is_army BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE INDEX IF NOT EXISTS sc2_unit_types_name_idx
+      ON sc2_unit_types(name);
+
+    CREATE INDEX IF NOT EXISTS sc2_unit_types_str_id_idx
+      ON sc2_unit_types(str_id);
+
+    CREATE INDEX IF NOT EXISTS sc2_unit_types_race_idx
+      ON sc2_unit_types(race);
+  `);
+}
+
+async function insertUnitTypes(
+  db: PGlite,
+  unitTypes: Sc2UnitType[],
+) {
+  await db.exec("BEGIN");
+
+  try {
+    for (const unit of unitTypes) {
+      await db.query(
+        `
+        INSERT INTO sc2_unit_types (
+          type_id,
+          str_id,
+          name,
+          title,
+          race,
+          minerals,
+          vespene,
+          supply,
+          is_building,
+          is_worker,
+          is_army
+        )
+        VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8,
+          $9, $10, $11
+        )
+        ON CONFLICT (type_id) DO UPDATE SET
+          str_id = EXCLUDED.str_id,
+          name = EXCLUDED.name,
+          title = EXCLUDED.title,
+          race = EXCLUDED.race,
+          minerals = EXCLUDED.minerals,
+          vespene = EXCLUDED.vespene,
+          supply = EXCLUDED.supply,
+          is_building = EXCLUDED.is_building,
+          is_worker = EXCLUDED.is_worker,
+          is_army = EXCLUDED.is_army
+        `,
+        [
+          unit.id,
+          unit.str_id ?? null,
+          unit.name ?? null,
+          unit.title ?? null,
+          unit.race ?? null,
+          unit.minerals ?? 0,
+          unit.vespene ?? 0,
+          unit.supply ?? 0,
+          unit.is_building ?? false,
+          unit.is_worker ?? false,
+          unit.is_army ?? false,
+        ],
+      );
+    }
+
+    await db.exec("COMMIT");
+  } catch (err) {
+    await db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 async function insertSc2Events(db: PGlite, events: RawSc2Event[]) {
@@ -229,9 +337,11 @@ const db = await PGlite.create({
   extensions: { live }
 })
 
-await initSchema(db);
+await createEventTable(db);
+await createUnitTypeTable(db)
 
-await insertSc2Events(db, events);
+if (events) await insertSc2Events(db, events);
+if (unitTypes) await insertUnitTypes(db, unitTypes)
 const count = await db.query<{ count: string }>(
   `SELECT COUNT(*)::text AS count FROM sc2_events`,
 );

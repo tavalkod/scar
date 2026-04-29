@@ -22,7 +22,8 @@ def parse_sc2_replay_bytes(data: bytes) -> str:
         result = {
             "players": players,
             "unitEvents": unitEvents,
-            "unitTypeChangeEvents": unitTypeChangeEvents
+            "unitTypeChangeEvents": unitTypeChangeEvents,
+            "unitTypes": [v.__dict__ for (k, v) in replay.datapack.units.items()]
         }
 
         return json.dumps(result)
