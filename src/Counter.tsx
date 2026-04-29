@@ -6,7 +6,7 @@ import type { EChartsOption, SeriesOption } from "echarts";
 type UnitCompRow = {
     pid: number;
     unit_type: string;
-    countOverAllFrames: number[];
+    count_over_all_frames: number[];
 };
 
 type UnitLossRow = {
@@ -54,130 +54,55 @@ function formatTime(seconds: number) {
 
 
 const unitCompQuery = `
-WITH birth_events AS (
-  SELECT DISTINCT ON (unit_id)
-    unit_id,
-    frame,
-    second,
-    upkeep_pid AS pid,
-    unit_type_name AS unit_type
-  FROM sc2_events
-  WHERE event_name IN ('UnitBornEvent', 'UnitInitEvent')
-    AND unit_id IS NOT NULL
-    AND upkeep_pid IS NOT NULL
-    AND upkeep_pid != 0
-    AND unit_type_name IS NOT NULL
-    AND unit_type_name NOT ILIKE '%beacon%'
-  ORDER BY unit_id, frame
-),
-
-deltas AS (
-  SELECT
-    frame,
-    pid,
-    unit_type,
-    1 AS delta
-  FROM birth_events
-
-  UNION ALL
-
-  SELECT
-    d.frame,
-    b.pid,
-    b.unit_type,
-    -1 AS delta
-  FROM sc2_events d
-  JOIN birth_events b ON b.unit_id = d.unit_id
-  WHERE d.event_name = 'UnitDiedEvent'
-),
-
-frame_deltas AS (
-  SELECT
-    frame,
-    pid,
-    unit_type,
-    SUM(delta)::int AS delta
-  FROM deltas
-  GROUP BY frame, pid, unit_type
-),
-
+WITH 
 frames AS (
-  SELECT DISTINCT frame
-  FROM sc2_events
+        select distinct frame from sc2_events
+),
+born AS (
+    select * from sc2_events where event_name IN ('UnitBornEvent', 'UnitInitEvent')
+),
+passed AS (
+    select * from sc2_events where event_name = 'UnitDiedEvent'
+),
+all_units AS (
+    select 
+        e1.unit_id,
+        e1.upkeep_pid AS pid,
+        e1.unit_type_name AS unit_type,
+        e1.frame as born,
+        e2.frame as died
+    from 
+        born e1
+    left join passed e2
+    on e1.unit_id = e2.unit_id
+    where e1.upkeep_pid != 0
+    AND e1.unit_type_name NOT ILIKE '%beacon%'
+),
+all_units_per_frame as (
+    select frames.frame, all_units.pid, all_units.unit_type, all_units.unit_id, all_units.born, all_units.died
+    from frames 
+    join all_units 
+    on frames.frame >= all_units.born and (all_units.died is null or frames.frame <= all_units.died)
 ),
 
-series_keys AS (
-  SELECT DISTINCT
-    pid,
-    unit_type
-  FROM birth_events
+pid_and_type as (
+    select distinct pid as pid, unit_type from all_units
 ),
-
-expanded AS (
-  SELECT
-    f.frame,
-    k.pid,
-    k.unit_type,
-    COALESCE(fd.delta, 0) AS delta
-  FROM frames f
-  CROSS JOIN series_keys k
-  LEFT JOIN frame_deltas fd
-    ON fd.frame = f.frame
-   AND fd.pid = k.pid
-   AND fd.unit_type = k.unit_type
+pid_type_frames as (
+    select pid, unit_type, frame from pid_and_type, frames
 ),
-
-cumulative AS (
-  SELECT
-    frame,
-    pid,
-    unit_type,
-    SUM(delta) OVER (
-      PARTITION BY pid, unit_type
-      ORDER BY frame
-      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-    )::int AS count
-  FROM expanded
+foo as (
+    select g.pid, g.unit_type, g.frame, count(a.*) as cnt
+    from pid_type_frames g 
+    left join all_units_per_frame a on
+        g.pid = a.pid and
+        g.frame = a.frame and
+        g.unit_type = a.unit_type
+    group by g.pid, g.unit_type, g.frame
 )
-
-SELECT
-  pid,
-  unit_type,
-  array_agg(count ORDER BY frame) AS "countOverAllFrames"
-FROM cumulative
-GROUP BY pid, unit_type
-ORDER BY pid, unit_type;
-`;
-const unitsLostQuery = `
-WITH birth_events AS (
-  SELECT DISTINCT ON (unit_id)
-    unit_id, upkeep_pid, unit_type_name
-  FROM sc2_events
-  WHERE event_name IN ('UnitBornEvent','UnitInitEvent')
-    AND upkeep_pid IS NOT NULL
-    AND upkeep_pid != 0
-    AND unit_type_name IS NOT NULL
-    AND unit_type_name NOT ILIKE '%beacon%'
-    AND unit_type_name NOT ILIKE 'larva'
-  ORDER BY unit_id, frame
-),
-death_events AS (
-  SELECT
-    d.frame, d.second, b.upkeep_pid,
-    COUNT(*)::int AS delta
-  FROM sc2_events d
-  JOIN birth_events b ON b.unit_id = d.unit_id
-  WHERE d.event_name = 'UnitDiedEvent'
-  GROUP BY d.frame, d.second, b.upkeep_pid
-)
-SELECT
-  frame, second, upkeep_pid,
-  SUM(delta) OVER (
-    PARTITION BY upkeep_pid
-    ORDER BY frame
-  )::int AS units_lost
-FROM death_events
-ORDER BY upkeep_pid, frame;
+select pid, unit_type, array_agg(cnt ORDER BY frame) as count_over_all_frames
+from foo 
+group by pid, unit_type;
 `;
 
 
@@ -188,6 +113,7 @@ export default function Counter() {
     //console.log(rows2)
     //return null;
     const unitRows = useLiveQuery<UnitCompRow>(unitCompQuery, [])?.rows;
+
     if (!unitRows) return null;
 
     const option = {
@@ -220,7 +146,7 @@ export default function Counter() {
                 xAxisIndex: row.pid - 1,
                 yAxisIndex: row.pid - 1,
                 type: "line",
-                data: row.countOverAllFrames,
+                data: row.count_over_all_frames,
                 stack: row.pid,
                 name: row.unit_type,
                 lineStyle: {
