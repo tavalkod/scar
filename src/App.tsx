@@ -47,7 +47,7 @@ const resultJson = await pyodide.runPythonAsync(
 const result = JSON.parse(resultJson);
 const events = result.unitEvents;
 const unitTypes = result.unitTypes;
-console.log("Unit Types: ", unitTypes)
+//console.log("Unit Types: ", unitTypes)
 
 // init pg
 type RawSc2Event = {
@@ -345,7 +345,7 @@ if (unitTypes) await insertUnitTypes(db, unitTypes)
 const count = await db.query<{ count: string }>(
   `SELECT COUNT(*)::text AS count FROM sc2_events`,
 );
-console.log("Read events", count)
+//console.log("Read events", count)
 
 
 

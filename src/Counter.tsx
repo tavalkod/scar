@@ -59,7 +59,9 @@ frames AS (
         select distinct frame from sc2_events
 ),
 born AS (
-    select * from sc2_events where event_name IN ('UnitBornEvent', 'UnitInitEvent')
+    select * from sc2_events where 
+        event_name IN ('UnitBornEvent', 'UnitInitEvent')
+        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
 ),
 passed AS (
     select * from sc2_events where event_name = 'UnitDiedEvent'
@@ -74,9 +76,10 @@ all_units AS (
     from 
         born e1
     left join passed e2
-    on e1.unit_id = e2.unit_id
+        on e1.unit_id = e2.unit_id
     where e1.upkeep_pid != 0
     AND e1.unit_type_name NOT ILIKE '%beacon%'
+    AND T.is_army = true
 ),
 all_units_per_frame as (
     select frames.frame, all_units.pid, all_units.unit_type, all_units.unit_id, all_units.born, all_units.died
@@ -112,8 +115,13 @@ export default function Counter() {
     //const rows2 = useLiveQuery<UnitCompRow>("Select * from sc2_events where unit_id_index = 210", [])?.rows;
     //console.log(rows2)
     //return null;
-    const unitRows = useLiveQuery<UnitCompRow>(unitCompQuery, [])?.rows;
+    //console.log(unitRows)
+    const test = useLiveQuery<any>(`select * from sc2_events where 
+        event_name IN ('UnitBornEvent', 'UnitInitEvent')
+        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)`, [])?.rows;
+    console.log(test)
 
+    const unitRows = useLiveQuery<UnitCompRow>(unitCompQuery, [])?.rows;
     if (!unitRows) return null;
 
     const option = {
