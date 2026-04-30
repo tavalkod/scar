@@ -79,7 +79,6 @@ all_units AS (
         on e1.unit_id = e2.unit_id
     where e1.upkeep_pid != 0
     AND e1.unit_type_name NOT ILIKE '%beacon%'
-    AND T.is_army = true
 ),
 all_units_per_frame as (
     select frames.frame, all_units.pid, all_units.unit_type, all_units.unit_id, all_units.born, all_units.died
@@ -110,19 +109,37 @@ group by pid, unit_type;
 
 
 export default function Counter() {
-    //const rows = useLiveQuery<UnitCompRow>("Select * from sc2_events where unit_id_index = 210", [])?.rows;
-    //console.log(rows)
-    //const rows2 = useLiveQuery<UnitCompRow>("Select * from sc2_events where unit_id_index = 210", [])?.rows;
-    //console.log(rows2)
-    //return null;
-    //console.log(unitRows)
-    const test = useLiveQuery<any>(`select * from sc2_events where 
-        event_name IN ('UnitBornEvent', 'UnitInitEvent')
-        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)`, [])?.rows;
-    console.log(test)
 
     const unitRows = useLiveQuery<UnitCompRow>(unitCompQuery, [])?.rows;
+
+    const kills = useLiveQuery<any>(`
+with born AS (
+    select * from sc2_events where 
+        event_name IN ('UnitBornEvent', 'UnitInitEvent')
+        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
+),
+died AS (
+    select * from sc2_events where event_name = 'UnitDiedEvent'
+)
+select 
+    born.unit_type_name as casualty,
+    killer.unit_type_name as killer_type,
+    count(*)
+from 
+    died
+join
+    born killer
+        on killer.unit_id = died.killing_unit_id
+join
+    born
+        on died.unit_id = born.unit_id
+group by born.unit_type_name, killer.unit_type_name 
+`, [])?.rows;
+
+    
     if (!unitRows) return null;
+    if (!kills) return null;
+
 
     const option = {
         xAxis: [{ type: "category" }, { type: "category", gridIndex: 1 }],
@@ -165,107 +182,62 @@ export default function Counter() {
             }))
     };
 
-    return (
-        <ReactECharts option={option} style={{ height: 700 }} />
-    );
-    console.log(unitRows);
 
-    //const lossRows = useLiveQuery<UnitLossRow>(unitsLostQuery, [])?.rows;
-
-    if (!unitRows || !lossRows) return null;
-
-    const playerByPid = new Map(players.map((p) => [p.pid, p]));
-
-    const seconds = Array.from(
-        new Set([...unitRows.map(r => r.second), ...lossRows.map(r => r.second)])
-    ).sort((a, b) => a - b);
-
-    /*const labels = seconds.map(formatTime);
-
-    const source: (string | number)[][] = [["product", ...labels]];
-    const series: SeriesOption[] = [];*/
-
-    // ---- unit comps ----
-
-    // ---- units lost ----
-    /*const lossGrouped = new Map<number, UnitLossRow[]>();
-    for (const r of lossRows) {
-        lossGrouped.set(r.upkeep_pid, [...(lossGrouped.get(r.upkeep_pid) ?? []), r]);
+const option2 = {
+  tooltip: {
+    position: 'top'
+  },
+  grid: {
+    height: '50%',
+    top: '10%'
+  },
+  xAxis: {
+    name: "Died",
+    type: 'category',
+    splitArea: {
+      show: true
+    },
+    axisLabel: {
+        rotate: 90,
+        interval: 0
+    },
+  },
+  visualMap: {
+    min: Math.max(...kills.map(v => v.count)),
+    max: 10,
+    calculable: true,
+    orient: 'horizontal',
+    left: 'center',
+    bottom: '15%'
+  },
+  yAxis: {
+    name: "Killer",
+    type: 'category',
+    splitArea: {
+      show: true
     }
-
-    for (const [pid, group] of [...lossGrouped.entries()].sort((a, b) => a[0] - b[0])) {
-        const player = playerByPid.get(pid);
-        const name = player?.name ?? `P${pid}`;
-
-        const map = new Map(group.map(r => [r.second, r.units_lost]));
-        let last = 0;
-
-        const values = seconds.map(s => {
-            const v = map.get(s);
-            if (v !== undefined) last = v;
-            return last;
-        });
-
-        source.push([`${name} units lost`, ...values]);
-        series.push({ ...lineLost });
-    }*/
-
-    const singleAxis = {
-        axisTick: {}, axisLabel: {}, type: 'category',
-        axisPointer: {
-            animation: true,
-            label: {
-                show: true
-            }
-        },
-        splitLine: {
-            show: true,
-            lineStyle: {
-                type: 'dashed',
-                opacity: 0.2
-            }
+  },
+  series: [
+    {
+      type: 'heatmap',
+      data: kills.map(v => Object.values(v)),
+      label: {
+        show: true
+      },
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
         }
+      }
     }
+  ]
+};
 
-    const series = (pid) => (
-        {
-            type: 'themeRiver',
-            emphasis: { itemStyle: { shadowBlur: 20, shadowColor: 'rgba(0, 0, 0, 0.8)' } },
-            data: unitRows.filter(row => row.upkeep_pid === pid).map(row => [row.frame, row.count, row.unit_type_name]),
-        })
-
-    /*const option = {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'line',
-                lineStyle: {
-                    color: 'rgba(0,0,0,0.2)',
-                    width: 1,
-                    type: 'solid'
-                }
-            }
-        },
-        axisPointer: {
-            link: [
-                { singleAxisIndex: [0, 1] }  // or use singleAxisIndex if you're using singleAxis
-            ]
-        },
-        legend: {
-            top: 15
-        },
-        singleAxis: [
-            { top: "5%", height: "30%", ...singleAxis },
-            { top: "40%", height: "30%", ...singleAxis },
-            { top: "70%", height: "30%", },
-        ],
-        series: [
-            { ...series(1), singleAxisIndex: 0 },
-            { ...series(2), singleAxisIndex: 1 },
-        ]
-    };*/
-
-    return (
+    return (<>
         <ReactECharts option={option} style={{ height: 700 }} />
+        <ReactECharts option={option2} style={{ height: 400 }} />
+        <ReactECharts option={option2} style={{ height: 400 }} />
+        </>
     );
 }
