@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { useLiveQuery, usePGlite } from "@electric-sql/pglite-react";
 import type { EChartsOption, SeriesOption } from "echarts";
+import { raw } from "@electric-sql/pglite/template";
 
 
 type UnitCompRow = {
@@ -54,7 +55,14 @@ function formatTime(seconds: number) {
 }
 
 
-const unitCompQuery = `
+export default function Counter() {
+    const { selectedAggregation, dropdown } = useAggSelector();
+
+
+
+
+
+    const unitRows = useLiveQuery.sql<UnitCompRow>`
 WITH 
 frames AS (
         select distinct frame from sc2_events
@@ -82,10 +90,12 @@ all_units AS (
     AND e1.unit_type_name NOT ILIKE '%beacon%'
 ),
 all_units_per_frame as (
-    select frames.frame, all_units.pid, all_units.unit_type, all_units.unit_id, all_units.born, all_units.died
+    select frames.frame, all_units.pid, all_units.unit_type, all_units.unit_id, all_units.born, all_units.died, ${raw`${selectedAggregation}`} as metric
     from frames 
     join all_units 
-    on frames.frame >= all_units.born and (all_units.died is null or frames.frame <= all_units.died)
+        on frames.frame >= all_units.born and (all_units.died is null or frames.frame <= all_units.died)
+    join sc2_unit_types
+        on sc2_unit_types.str_id = all_units.unit_type
 ),
 
 pid_and_type as (
@@ -95,7 +105,7 @@ pid_type_frames as (
     select pid, unit_type, frame from pid_and_type, frames
 ),
 foo as (
-    select g.pid, g.unit_type, g.frame, count(a.*) as cnt
+    select g.pid, g.unit_type, g.frame, sum(COALESCE(a.metric, 0)) as cnt
     from pid_type_frames g 
     left join all_units_per_frame a on
         g.pid = a.pid and
@@ -106,12 +116,7 @@ foo as (
 select pid, unit_type, array_agg(Array[frame, cnt] ORDER BY frame) as count_over_all_frames
 from foo 
 group by pid, unit_type;
-`;
-
-
-export default function Counter() {
-
-    const unitRows = useLiveQuery<UnitCompRow>(unitCompQuery, [])?.rows;
+`?.rows;
 
     const kills = useLiveQuery<any>(`
 with born AS (
@@ -167,7 +172,6 @@ select
     ) as data from born
 group by upkeep_pid
 `, [])?.rows;
-    console.log(buildings)
 
     if (!unitRows) return null;
     if (!kills) return null;
@@ -177,7 +181,7 @@ group by upkeep_pid
         xAxis: [{ type: "category", axisLabel: { formatter: formatFrame } }, { type: "category", gridIndex: 1, axisLabel: { formatter: formatFrame } }],
         yAxis: [{}, { gridIndex: 1 }],
         grid: [{ top: "0%", height: '30%' }, { top: "40%", height: '30%' }],
-        dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }], 
+        dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }],
         legend: {
             type: 'scroll',
             orient: 'vertical',
@@ -275,7 +279,7 @@ group by upkeep_pid
     const option3 = {
         xAxis: { name: "X" },
         yAxis: { name: "Y" },
-        grid: {height: "500px", width: "500px"},
+        grid: { height: "500px", width: "500px" },
         dataZoom: [{
             type: 'inside',
             xAxisIndex: 0,
@@ -285,7 +289,7 @@ group by upkeep_pid
             type: 'inside',
             yAxisIndex: 0,
             filterMode: 'none'
-        }],        
+        }],
         legend: {
             type: 'scroll',
             orient: 'vertical',
@@ -331,14 +335,35 @@ group by upkeep_pid
         ]
 
     };
-    console.log(buildings)
 
     return (<>
+        {dropdown}
         <ReactECharts option={option} style={{ height: 700 }} />
         <ReactECharts option={option2} style={{ height: 500, width: 500 }} />
         <ReactECharts option={option3} style={{ height: 700, width: 800 }} />
     </>
     );
+
+    function useAggSelector() {
+        const [selectedAggregation, setSelectedAggregation] = useState('supply'); 
+        console.log(selectedAggregation)
+
+        // ...
+        const dropdown = (
+            <select
+                value={selectedAggregation}
+                onChange={e => setSelectedAggregation(e.target.value)}
+            >
+                <option value="sc2_unit_types.supply">Supply</option>
+                <option value="sc2_unit_types.minerals">Minerals</option>
+                <option value="sc2_unit_types.vespene">Vespene</option>
+                <option value="sc2_unit_types.minerals + sc2_unit_types.vespene">Resources</option>
+                <option value="1">Count</option>
+            </select>
+        );
+
+        return { selectedAggregation, dropdown };
+    }
 }
 function formatFrame(frame: any) {
     const totalS = Math.floor(frame / 24 / 1.4);
