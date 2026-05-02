@@ -103,7 +103,7 @@ foo as (
         g.unit_type = a.unit_type
     group by g.pid, g.unit_type, g.frame
 )
-select pid, unit_type, array_agg(cnt ORDER BY frame) as count_over_all_frames
+select pid, unit_type, array_agg(Array[frame, cnt] ORDER BY frame) as count_over_all_frames
 from foo 
 group by pid, unit_type;
 `;
@@ -174,11 +174,17 @@ group by upkeep_pid
 
 
     const option = {
-        xAxis: [{ type: "category" }, { type: "category", gridIndex: 1 }],
+        xAxis: [{ type: "category", axisLabel: { formatter: formatFrame } }, { type: "category", gridIndex: 1, axisLabel: { formatter: formatFrame } }],
         yAxis: [{}, { gridIndex: 1 }],
         grid: [{ top: "0%", height: '30%' }, { top: "40%", height: '30%' }],
-        dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }],
-        legend: { top: "85%" },
+        dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }], 
+        legend: {
+            type: 'scroll',
+            orient: 'vertical',
+            right: 10,
+            top: 20,
+            bottom: 20,
+        },
 
         tooltip: {
             trigger: 'axis',
@@ -269,6 +275,7 @@ group by upkeep_pid
     const option3 = {
         xAxis: { name: "X" },
         yAxis: { name: "Y" },
+        grid: {height: "500px", width: "500px"},
         dataZoom: [{
             type: 'inside',
             xAxisIndex: 0,
@@ -278,8 +285,14 @@ group by upkeep_pid
             type: 'inside',
             yAxisIndex: 0,
             filterMode: 'none'
-        }],
-        legend: {},
+        }],        
+        legend: {
+            type: 'scroll',
+            orient: 'vertical',
+            right: 10,
+            top: 20,
+            bottom: 20,
+        },
         tooltip: {
             axisPointer: {
                 type: 'cross',
@@ -294,10 +307,7 @@ group by upkeep_pid
                 // if `name` or `value` come from untrusted sources, where
                 // malicious code may be injected into that strings.
                 const [x, y, frame] = value;
-                const totalS = Math.floor(frame / 24 / 1.4);
-                const s = Math.floor(totalS % 60).toFixed(0).padStart(2, "0")
-                const m = Math.floor(totalS / 60).toFixed(0).padStart(2, "0")
-                return `${seriesName} died (x=${x}, y=${y}) at ${m}:${s}`
+                return `${seriesName} died (x=${x}, y=${y}) at ${formatFrame(frame)}`
             }
         },
         series: [
@@ -314,10 +324,7 @@ group by upkeep_pid
                         // if `name` or `value` come from untrusted sources, where
                         // malicious code may be injected into that strings.
                         const [x, y, frame] = value;
-                        const totalS = Math.floor(frame / 24 / 1.4);
-                        const s = Math.floor(totalS % 60).toFixed(0).padStart(2, "0")
-                        const m = Math.floor(totalS / 60).toFixed(0).padStart(2, "0")
-                        return `${name} (x=${x}, y=${y}) started at ${m}:${s}`
+                        return `${name} (x=${x}, y=${y}) started at ${formatFrame(frame)}`
                     }
                 }
             }))
@@ -329,7 +336,15 @@ group by upkeep_pid
     return (<>
         <ReactECharts option={option} style={{ height: 700 }} />
         <ReactECharts option={option2} style={{ height: 500, width: 500 }} />
-        <ReactECharts option={option3} style={{ height: 700, width: 700}} />
+        <ReactECharts option={option3} style={{ height: 700, width: 800 }} />
     </>
     );
 }
+function formatFrame(frame: any) {
+    const totalS = Math.floor(frame / 24 / 1.4);
+    const s = Math.floor(totalS % 60).toFixed(0).padStart(2, "0");
+    const m = Math.floor(totalS / 60).toFixed(0).padStart(2, "0");
+    const time = `${m}:${s}`;
+    return time;
+}
+
