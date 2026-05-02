@@ -3,6 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { useLiveQuery, usePGlite } from "@electric-sql/pglite-react";
 import type { EChartsOption, SeriesOption } from "echarts";
 
+
 type UnitCompRow = {
     pid: number;
     unit_type: string;
@@ -136,7 +137,38 @@ join
 group by born.unit_type_name, killer.unit_type_name 
 `, [])?.rows;
 
-    
+    const deathLocations = useLiveQuery<any>(`
+with born AS (
+    select * from sc2_events where 
+        event_name IN ('UnitBornEvent', 'UnitInitEvent')
+        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
+),
+died AS (
+    select * from sc2_events where event_name = 'UnitDiedEvent'
+)
+select /*born.upkeep_pid*/'scatter' as type, born.unit_type_name as name, array_agg(ARRAY[died.x, died.y, died.frame]) as data from died
+join born on died.unit_id = born.unit_id
+group by born.upkeep_pid, born.unit_type_name
+`, [])?.rows;
+
+    const buildings = useLiveQuery<any>(`
+with born AS (
+    select * from sc2_events where 
+        event_name IN ('UnitBornEvent', 'UnitInitEvent')
+        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_building)
+)
+select 
+    upkeep_pid as name, 
+    'scatter' as type, 
+    'triangle' as symbol, 
+    array_agg( json_build_object(
+        'name', unit_type_name,
+        'value', ARRAY[born.x, born.y, born.frame])
+    ) as data from born
+group by upkeep_pid
+`, [])?.rows;
+    console.log(buildings)
+
     if (!unitRows) return null;
     if (!kills) return null;
 
@@ -145,7 +177,7 @@ group by born.unit_type_name, killer.unit_type_name
         xAxis: [{ type: "category" }, { type: "category", gridIndex: 1 }],
         yAxis: [{}, { gridIndex: 1 }],
         grid: [{ top: "0%", height: '30%' }, { top: "40%", height: '30%' }],
-        dataZoom: [{type: "slider", top: "75%", xAxisIndex: [0, 1]}],
+        dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }],
         legend: { top: "85%" },
 
         tooltip: {
@@ -183,61 +215,121 @@ group by born.unit_type_name, killer.unit_type_name
     };
 
 
-const option2 = {
-  tooltip: {
-    position: 'top'
-  },
-  grid: {
-    height: '50%',
-    top: '10%'
-  },
-  xAxis: {
-    name: "Died",
-    type: 'category',
-    splitArea: {
-      show: true
-    },
-    axisLabel: {
-        rotate: 90,
-        interval: 0
-    },
-  },
-  visualMap: {
-    min: Math.max(...kills.map(v => v.count)),
-    max: 10,
-    calculable: true,
-    orient: 'horizontal',
-    left: 'center',
-    bottom: '15%'
-  },
-  yAxis: {
-    name: "Killer",
-    type: 'category',
-    splitArea: {
-      show: true
-    }
-  },
-  series: [
-    {
-      type: 'heatmap',
-      data: kills.map(v => Object.values(v)),
-      label: {
-        show: true
-      },
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
-        }
-      }
-    }
-  ]
-};
+    const option2 = {
+        tooltip: {
+            position: 'top'
+        },
+        grid: {
+            height: '50%',
+            top: '10%'
+        },
+        xAxis: {
+            name: "Died",
+            type: 'category',
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                rotate: 90,
+                interval: 0
+            },
+        },
+        visualMap: {
+            min: Math.max(...kills.map(v => v.count)),
+            max: 10,
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '15%'
+        },
+        yAxis: {
+            name: "Killer",
+            type: 'category',
+            splitArea: {
+                show: true
+            }
+        },
+        series: [
+            {
+                type: 'heatmap',
+                data: kills.map(v => Object.values(v)),
+                label: {
+                    show: true
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    const option3 = {
+        xAxis: { name: "X" },
+        yAxis: { name: "Y" },
+        dataZoom: [{
+            type: 'inside',
+            xAxisIndex: 0,
+            filterMode: 'none'
+        },
+        {
+            type: 'inside',
+            yAxisIndex: 0,
+            filterMode: 'none'
+        }],
+        legend: {},
+        tooltip: {
+            axisPointer: {
+                type: 'cross',
+                snap: true
+            },
+            formatter: params => {
+                const { seriesName, value, name, data } = params;
+                // HTML-escaping must be performed.
+                // Otherwise, the rendering may be incorrect if `name` or
+                // `value` contain special charactors like '<', '>', etc.
+                // Additionally, unescaped strings may introduces XSS risks
+                // if `name` or `value` come from untrusted sources, where
+                // malicious code may be injected into that strings.
+                const [x, y, frame] = value;
+                const totalS = Math.floor(frame / 24 / 1.4);
+                const s = Math.floor(totalS % 60).toFixed(0).padStart(2, "0")
+                const m = Math.floor(totalS / 60).toFixed(0).padStart(2, "0")
+                return `${seriesName} died (x=${x}, y=${y}) at ${m}:${s}`
+            }
+        },
+        series: [
+            ...deathLocations,
+            ...buildings.map(series => ({
+                ...series,
+                tooltip: {
+                    formatter: params => {
+                        const { seriesName, value, name, data } = params;
+                        // HTML-escaping must be performed.
+                        // Otherwise, the rendering may be incorrect if `name` or
+                        // `value` contain special charactors like '<', '>', etc.
+                        // Additionally, unescaped strings may introduces XSS risks
+                        // if `name` or `value` come from untrusted sources, where
+                        // malicious code may be injected into that strings.
+                        const [x, y, frame] = value;
+                        const totalS = Math.floor(frame / 24 / 1.4);
+                        const s = Math.floor(totalS % 60).toFixed(0).padStart(2, "0")
+                        const m = Math.floor(totalS / 60).toFixed(0).padStart(2, "0")
+                        return `${name} (x=${x}, y=${y}) started at ${m}:${s}`
+                    }
+                }
+            }))
+        ]
+
+    };
+    console.log(buildings)
 
     return (<>
         <ReactECharts option={option} style={{ height: 700 }} />
-        <ReactECharts option={option2} style={{ height: 400 }} />
-        <ReactECharts option={option2} style={{ height: 400 }} />
-        </>
+        <ReactECharts option={option2} style={{ height: 500, width: 500 }} />
+        <ReactECharts option={option3} style={{ height: 700, width: 700}} />
+    </>
     );
 }
