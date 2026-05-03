@@ -335,7 +335,6 @@ group by upkeep_pid
 
     function useAggSelector() {
         const [selectedAggregation, setSelectedAggregation] = useState('supply'); 
-        console.log(selectedAggregation)
 
         // ...
         const dropdown = (

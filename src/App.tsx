@@ -12,7 +12,6 @@ console.log("Loading Pyodide...");
 const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.29.0/full/pyodide.mjs");
 const pyodide = await loadPyodide();
 
-console.log("Loading micropip...");
 await pyodide.loadPackage("micropip");
 await pyodide.runPythonAsync(`
 import sys
@@ -22,13 +21,11 @@ const mpyqSource = await fetch("/mpyq.py").then(r => r.text());
 pyodide.FS.mkdir("/app");
 pyodide.FS.writeFile("/app/mpyq.py", mpyqSource);
 
-console.log("Installing sc2reader...");
 await pyodide.runPythonAsync(`
 import micropip
 await micropip.install("sc2reader", deps=False)
 `);
 
-console.log("Setting up import script...");
 const txt = await fetch("./read.py").then(r => r.text())
 await pyodide.runPythonAsync(txt);
 console.log("Pyodide ready.");
@@ -48,7 +45,6 @@ const result = JSON.parse(resultJson);
 const events = result.unitEvents;
 const unitTypes = result.unitTypes;
 const stats = result.playerStatsEvent;
-console.log(stats)
 
 // init pg
 type RawSc2Event = {

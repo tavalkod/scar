@@ -16,7 +16,27 @@ select
 from player_stats_events 
 group by pid;
 `?.rows;
+    const filteredIncome = useLiveQuery.sql<any>`
+with T as (select
+    P1.frame,
+    P1.pid, 
+    SUM(P2.minerals_collection_rate) / Count(P2.minerals_collection_rate) as minerals_collection_rate
+from player_stats_events P1 
+join player_stats_events P2
+    on P1.pid = P2.pid and P1.frame between P2.frame - 16*60 and P2.frame + 16*60
+group by P1.pid, P1.frame
+)
+select 
+    'line' as type,
+    pid || ' filtered' as name,
+    array_agg(Array[frame, minerals_collection_rate] ORDER BY frame) as data
+from T
+group by pid;
 
+
+`?.rows;
+
+    if (!income || !filteredIncome) return null;
 
     const option = {
         xAxis: { type: "category", axisLabel: { formatter: formatFrame } },
@@ -26,8 +46,10 @@ group by pid;
 
         tooltip: {
         },
-        series:
-            income
+        series: [
+            ...income,
+            ...filteredIncome
+        ]
     };
 
     return (<>
@@ -35,26 +57,6 @@ group by pid;
     </>
     );
 
-    function useAggSelector() {
-        const [selectedAggregation, setSelectedAggregation] = useState('supply'); 
-        console.log(selectedAggregation)
-
-        // ...
-        const dropdown = (
-            <select
-                value={selectedAggregation}
-                onChange={e => setSelectedAggregation(e.target.value)}
-            >
-                <option value="sc2_unit_types.supply">Supply</option>
-                <option value="sc2_unit_types.minerals">Minerals</option>
-                <option value="sc2_unit_types.vespene">Vespene</option>
-                <option value="sc2_unit_types.minerals + sc2_unit_types.vespene">Resources</option>
-                <option value="1">Count</option>
-            </select>
-        );
-
-        return { selectedAggregation, dropdown };
-    }
 }
 function formatFrame(frame: any) {
     const totalS = Math.floor(frame / 24 / 1.4);
