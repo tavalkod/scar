@@ -3,6 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { useLiveQuery, usePGlite } from "@electric-sql/pglite-react";
 import type { EChartsOption, SeriesOption } from "echarts";
 import { raw } from "@electric-sql/pglite/template";
+import { legend } from "./legend";
 
 
 type UnitCompRow = {
@@ -55,7 +56,7 @@ function formatTime(seconds: number) {
 }
 
 
-export default function Counter() {
+export default function UnitCompositions() {
     const { selectedAggregation, dropdown } = useAggSelector();
 
 
@@ -182,13 +183,7 @@ group by upkeep_pid
         yAxis: [{}, { gridIndex: 1 }],
         grid: [{ top: "0%", height: '30%' }, { top: "40%", height: '30%' }],
         dataZoom: [{ type: "slider", top: "75%", xAxisIndex: [0, 1] }],
-        legend: {
-            type: 'scroll',
-            orient: 'vertical',
-            right: 10,
-            top: 20,
-            bottom: 20,
-        },
+        legend: legend,
 
         tooltip: {
             trigger: 'axis',
@@ -290,13 +285,7 @@ group by upkeep_pid
             yAxisIndex: 0,
             filterMode: 'none'
         }],
-        legend: {
-            type: 'scroll',
-            orient: 'vertical',
-            right: 10,
-            top: 20,
-            bottom: 20,
-        },
+        legend: legend,
         tooltip: {
             axisPointer: {
                 type: 'cross',

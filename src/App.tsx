@@ -3,7 +3,8 @@ import sqlInit from "./sqlInit"
 
 import { live } from "@electric-sql/pglite/live"
 import { PGliteProvider } from "@electric-sql/pglite-react"
-import Counter from "./Counter";
+import UnitCompositions from "./Counter";
+import Economy from "./Economy";
 
 
 // load python and get the result
@@ -330,7 +331,8 @@ export default function App() {
   return (
 
     <PGliteProvider db={db}>
-      <Counter />
+      <Economy/>
+      <UnitCompositions />
     </PGliteProvider>)
 
 }
