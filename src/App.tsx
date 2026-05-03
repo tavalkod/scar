@@ -46,7 +46,8 @@ const resultJson = await pyodide.runPythonAsync(
 const result = JSON.parse(resultJson);
 const events = result.unitEvents;
 const unitTypes = result.unitTypes;
-//console.log("Unit Types: ", unitTypes)
+const stats = result.playerStatsEvent;
+console.log(stats)
 
 // init pg
 type RawSc2Event = {
@@ -262,6 +263,51 @@ async function insertSc2Events(db: PGlite, events: RawSc2Event[]) {
   }
 }
 
+
+async function insertStats(
+  db: PGlite,
+  stats: any[],
+) {
+  await db.exec("BEGIN");
+
+  try {
+    for (const stat of stats) {
+      await db.query(
+        `
+        INSERT INTO player_stats_events (
+          frame,
+          pid,
+          minearls_current,
+          vespene_current,
+          minerals_collection_rate,
+          vespene_collection_rate,
+          workers_active_count
+        )
+        VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7
+        )
+        `,
+        [
+          stat.frame,
+          stat.pid,
+          stat.minearls_current,
+          stat.vespene_current,
+          stat.minerals_collection_rate,
+          stat.vespene_collection_rate,
+          stat.workers_active_count,
+        ],
+      );
+    }
+
+    await db.exec("COMMIT");
+  } catch (err) {
+    await db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+
 const db = await PGlite.create({
   extensions: { live }
 })
@@ -270,11 +316,7 @@ await db.exec(sqlInit)
 
 if (events) await insertSc2Events(db, events);
 if (unitTypes) await insertUnitTypes(db, unitTypes)
-const count = await db.query<{ count: string }>(
-  `SELECT COUNT(*)::text AS count FROM sc2_events`,
-);
-//console.log("Read events", count)
-
+if (stats) await insertStats(db, stats)
 
 
 export default function App() {
@@ -286,9 +328,9 @@ export default function App() {
   if (!result) return <>NO RESULT?!</>;
 
   return (
-  
+
     <PGliteProvider db={db}>
-      <Counter/>
+      <Counter />
     </PGliteProvider>)
 
 }

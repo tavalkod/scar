@@ -54,14 +54,22 @@ CREATE TABLE IF NOT EXISTS sc2_unit_types (
       is_army BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX IF NOT EXISTS sc2_unit_types_name_idx
-    ON sc2_unit_types(name);
+CREATE INDEX sc2_unit_types_name_idx ON sc2_unit_types(name);
+CREATE INDEX sc2_unit_types_str_id_idx ON sc2_unit_types(str_id);
+CREATE INDEX sc2_unit_types_race_idx ON sc2_unit_types(race);
 
-CREATE INDEX IF NOT EXISTS sc2_unit_types_str_id_idx
-    ON sc2_unit_types(str_id);
 
-CREATE INDEX IF NOT EXISTS sc2_unit_types_race_idx
-    ON sc2_unit_types(race);
+CREATE TABLE IF NOT EXISTS player_stats_events (
+    id BIGSERIAL PRIMARY KEY,
 
+    frame INTEGER NOT NULL,
+    pid INTEGER,
+
+    minearls_current INTEGER,
+    vespene_current INTEGER,
+    minerals_collection_rate INTEGER,
+    vespene_collection_rate INTEGER,
+    workers_active_count INTEGER
+);
 
 `
