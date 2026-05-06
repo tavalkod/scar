@@ -6,6 +6,9 @@ import { PGliteProvider } from "@electric-sql/pglite-react"
 import UnitCompositions from "./Counter";
 import Economy from "./Economy";
 
+import init, { add } from "../wasm/pkg";
+await init();
+//console.log(add(1, 2))
 
 // load python and get the result
 console.log("Loading Pyodide...");
