@@ -6,12 +6,12 @@ import { PGliteProvider } from "@electric-sql/pglite-react"
 import UnitCompositions from "./Counter";
 import Economy from "./Economy";
 
-import init, { add } from "../wasm/pkg";
+import init, { parse_replay } from "../wasm/pkg";
 await init();
 //console.log(add(1, 2))
 
 // load python and get the result
-console.log("Loading Pyodide...");
+/*console.log("Loading Pyodide...");
 const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.29.0/full/pyodide.mjs");
 const pyodide = await loadPyodide();
 
@@ -31,12 +31,14 @@ await micropip.install("sc2reader", deps=False)
 
 const txt = await fetch("./read.py").then(r => r.text())
 await pyodide.runPythonAsync(txt);
-console.log("Pyodide ready.");
+console.log("Pyodide ready.");*/
 
 console.log("Loading replay file");
 const file = await fetch("/replay.SC2Replay")
 const buffer = await file.arrayBuffer();
 const bytes = new Uint8Array(buffer);
+
+console.log(parse_replay(bytes))
 
 pyodide.globals.set("replay_bytes_js", bytes);
 
