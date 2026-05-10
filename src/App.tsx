@@ -8,30 +8,6 @@ import Economy from "./Economy";
 
 import init, { parse_replay } from "../wasm/pkg";
 await init();
-//console.log(add(1, 2))
-
-// load python and get the result
-/*console.log("Loading Pyodide...");
-const { loadPyodide } = await import("https://cdn.jsdelivr.net/pyodide/v0.29.0/full/pyodide.mjs");
-const pyodide = await loadPyodide();
-
-await pyodide.loadPackage("micropip");
-await pyodide.runPythonAsync(`
-import sys
-sys.path.append("/app")
-`);
-const mpyqSource = await fetch("/mpyq.py").then(r => r.text());
-pyodide.FS.mkdir("/app");
-pyodide.FS.writeFile("/app/mpyq.py", mpyqSource);
-
-await pyodide.runPythonAsync(`
-import micropip
-await micropip.install("sc2reader", deps=False)
-`);
-
-const txt = await fetch("./read.py").then(r => r.text())
-await pyodide.runPythonAsync(txt);
-console.log("Pyodide ready.");*/
 
 console.log("Loading replay file");
 const file = await fetch("/replay.SC2Replay")
