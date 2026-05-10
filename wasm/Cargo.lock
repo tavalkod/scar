@@ -1190,6 +1190,7 @@ version = "0.1.0"
 dependencies = [
  "nom-mpq",
  "s2protocol",
+ "serde_json",
  "wasm-bindgen",
 ]
 

@@ -38,15 +38,11 @@ const file = await fetch("/replay.SC2Replay")
 const buffer = await file.arrayBuffer();
 const bytes = new Uint8Array(buffer);
 
-console.log(parse_replay(bytes))
+const resultJson = parse_replay(bytes)
 
-pyodide.globals.set("replay_bytes_js", bytes);
-
-const resultJson = await pyodide.runPythonAsync(
-  `parse_sc2_replay_bytes(replay_bytes_js.to_bytes())`
-);
 
 const result = JSON.parse(resultJson);
+console.log(result)
 const events = result.unitEvents;
 const unitTypes = result.unitTypes;
 const stats = result.playerStatsEvent;
@@ -109,14 +105,14 @@ function cleanEvent(e: RawSc2Event) {
     killing_player,
     killing_unit,
     location,
-    name,
+    event_name,
     ...rest
   } = e;
 
   return {
     frame: e.frame,
     second: e.second,
-    event_name: e.name,
+    event_name: e.event_name,
 
     unit_id_index: e.unit_id_index ?? null,
     unit_id_recycle: e.unit_id_recycle ?? null,
@@ -147,6 +143,7 @@ async function insertUnitTypes(
   await db.exec("BEGIN");
 
   try {
+    console.log(unitTypes)
     for (const unit of unitTypes) {
       await db.query(
         `
@@ -209,7 +206,6 @@ async function insertSc2Events(db: PGlite, events: RawSc2Event[]) {
   try {
     for (const event of events) {
       const e = cleanEvent(event);
-
       await db.query(
         `
         INSERT INTO sc2_events (
@@ -233,7 +229,7 @@ async function insertSc2Events(db: PGlite, events: RawSc2Event[]) {
         `,
         [
           e.frame,
-          e.second,
+          Math.floor(e.frame / 24 / 1.6), //todo read this from data
           e.event_name,
 
           e.unit_id_index,

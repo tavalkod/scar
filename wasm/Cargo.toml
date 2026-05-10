@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 wasm-bindgen = "*"
 nom-mpq = "*"
 s2protocol = { version = "3", default-features = false }
+serde_json = "1"
