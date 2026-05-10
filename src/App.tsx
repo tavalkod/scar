@@ -143,7 +143,6 @@ async function insertUnitTypes(
   await db.exec("BEGIN");
 
   try {
-    console.log(unitTypes)
     for (const unit of unitTypes) {
       await db.query(
         `
@@ -229,7 +228,7 @@ async function insertSc2Events(db: PGlite, events: RawSc2Event[]) {
         `,
         [
           e.frame,
-          Math.floor(e.frame / 24 / 1.6), //todo read this from data
+          Math.floor(e.frame / 24), //todo read this from data
           e.event_name,
 
           e.unit_id_index,
@@ -328,7 +327,7 @@ export default function App() {
   return (
 
     <PGliteProvider db={db}>
-      <Economy/>
+      {/*<Economy/>*/}
       <UnitCompositions />
     </PGliteProvider>)
 

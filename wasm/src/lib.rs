@@ -2,12 +2,14 @@
 
 use wasm_bindgen::prelude::*;
 use serde_json::{json, Value};
+use s2protocol::game_events::ability::balance_data::json_handler::read_balance_data_from_included_assets;
 
 //use s2protocol::tracker_events::TrackerEvent;
 use s2protocol::versions::{
     //read_details, 
     // read_message_events, 
-    read_tracker_events
+    read_tracker_events,
+    read_init_data
 };use s2protocol::tracker_events::{
     UnitBornEvent,
     UnitInitEvent,
@@ -25,22 +27,33 @@ pub fn parse_replay(bytes: &[u8]) -> Result<String, JsValue> {
         let unit_type_change_events: Vec<Value> = vec![];
         let unit_types: Vec<Value> = vec![];
         let player_stats_event: Vec<Value> = vec![];
+        let mut frame = 0;
         if let Ok(tracker_events) = read_tracker_events("", &mpq, &bytes) {
             unit_events = tracker_events.iter().filter_map(|event| {
                 let delta = event.delta;
+                frame += delta;
                 let event = &event.event;
                 match event {
-                    ReplayTrackerEvent::UnitBorn(e) => Some(unit_born_event_to_json(delta, e)),
-                    ReplayTrackerEvent::UnitDied(e) => Some(unit_died_event_to_json(delta, e)),
+                    ReplayTrackerEvent::UnitBorn(e) => Some(unit_born_event_to_json(frame, e)),
+                    ReplayTrackerEvent::UnitDied(e) => Some(unit_died_event_to_json(frame, e)),
                     //UnitOwnerChange(UnitOwnerChangeEvent),
                     //UnitTypeChange(UnitTypeChangeEvent),
                     //Upgrade(UpgradeEvent),
-                    ReplayTrackerEvent::UnitInit(e) => Some(unit_init_event_to_json(delta, e)),
+                    ReplayTrackerEvent::UnitInit(e) => Some(unit_init_event_to_json(frame, e)),
                     _ => None
                 }
             }).collect()
         }
 
+        if let Ok(balance_data) = read_balance_data_from_included_assets() {
+            let init_data = read_init_data("", &mpq, bytes).unwrap();
+            let replay_version = init_data.version;
+
+            let units_for_version = balance_data
+                .into_iter()
+                .filter(|((version, _unit_name), _unit)| *version == replay_version)
+                .collect::<std::collections::HashMap<_, _>>();
+        }
 
         //Ok(format!("{:#?}", details))
         let data = json!({
@@ -172,6 +185,11 @@ pub fn unit_died_event_to_json(frame: u32, event: &UnitDiedEvent,) -> Value {
         "killing_unit": null
     })
 }
+
+fn load_balance_data() {
+    
+}
+
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.

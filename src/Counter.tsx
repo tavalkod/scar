@@ -71,7 +71,7 @@ frames AS (
 born AS (
     select * from sc2_events where 
         event_name IN ('UnitBornEvent', 'UnitInitEvent')
-        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
+        /*AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)*/
 ),
 passed AS (
     select * from sc2_events where event_name = 'UnitDiedEvent'
@@ -95,7 +95,7 @@ all_units_per_frame as (
     from frames 
     join all_units 
         on frames.frame >= all_units.born and (all_units.died is null or frames.frame <= all_units.died)
-    join sc2_unit_types
+    left join sc2_unit_types
         on sc2_unit_types.str_id = all_units.unit_type
 ),
 
@@ -117,13 +117,16 @@ foo as (
 select pid, unit_type, array_agg(Array[frame, cnt] ORDER BY frame) as count_over_all_frames
 from foo 
 group by pid, unit_type;
+
 `?.rows;
+
+console.log(unitRows)
 
     const kills = useLiveQuery<any>(`
 with born AS (
     select * from sc2_events where 
         event_name IN ('UnitBornEvent', 'UnitInitEvent')
-        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
+        /*AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)*/
 ),
 died AS (
     select * from sc2_events where event_name = 'UnitDiedEvent'
@@ -147,7 +150,7 @@ group by born.unit_type_name, killer.unit_type_name
 with born AS (
     select * from sc2_events where 
         event_name IN ('UnitBornEvent', 'UnitInitEvent')
-        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)
+        /*AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_army)*/
 ),
 died AS (
     select * from sc2_events where event_name = 'UnitDiedEvent'
@@ -161,7 +164,7 @@ group by born.upkeep_pid, born.unit_type_name
 with born AS (
     select * from sc2_events where 
         event_name IN ('UnitBornEvent', 'UnitInitEvent')
-        AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_building)
+        /*AND sc2_events.unit_type_name in (select str_id from sc2_unit_types where is_building)*/
 )
 select 
     upkeep_pid as name, 
@@ -174,8 +177,10 @@ select
 group by upkeep_pid
 `, [])?.rows;
 
+
     if (!unitRows) return null;
     if (!kills) return null;
+
 
 
     const option = {
@@ -334,7 +339,7 @@ group by upkeep_pid
     );
 
     function useAggSelector() {
-        const [selectedAggregation, setSelectedAggregation] = useState('supply'); 
+        const [selectedAggregation, setSelectedAggregation] = useState('1'); 
 
         // ...
         const dropdown = (
