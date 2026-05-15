@@ -47,6 +47,26 @@ export const unitTypes = {
       supply: "REAL",
 };
 
+export const players = {
+    player_id: "INTEGER",
+    replay_id: "TEXT",
+    name: "TEXT",
+    race: "TEXT",
+    result: "TEXT"
+};
+
+export const playerStateEvents = {
+    frame: "INTEGER NOT NULL",
+    player_id: "INTEGER NOT NULL",
+    replay_id: "TEXT",
+
+    minearls_current: "INTEGER",
+    vespene_current: "INTEGER",
+    minerals_collection_rate: "INTEGER",
+    vespene_collection_rate: "INTEGER",
+    workers_active_count: "INTEGER"
+}
+
 function createTableSql(name, dict) {
     return `CREATE TABLE ${name} (
     ` + `id BIGSERIAL PRIMARY KEY,` + Object.entries(dict).map(([field, type]) => `\t${field} ${type}`).join(",\n") + "); \n"
@@ -75,19 +95,9 @@ CREATE INDEX unit_done_event_unit_id ON unit_done_event(unit_id);
 ${createTableSql("unit_types", unitTypes)}
 CREATE INDEX unit_types_replay_id ON unit_types(replay_id);
 CREATE INDEX unit_types_str_id ON unit_types(str_id);
-
-
-CREATE TABLE IF NOT EXISTS player_stats_events (
-    id BIGSERIAL PRIMARY KEY,
-
-    frame INTEGER NOT NULL,
-    pid INTEGER,
-
-    minearls_current INTEGER,
-    vespene_current INTEGER,
-    minerals_collection_rate INTEGER,
-    vespene_collection_rate INTEGER,
-    workers_active_count INTEGER
-);
-
+${createTableSql("players", players)}
+CREATE INDEX players_replay_id ON players(replay_id);
+${createTableSql("player_stats_events", playerStateEvents)}
+CREATE INDEX player_stats_events_replay_id ON player_stats_events(replay_id);
+CREATE INDEX player_stats_events_frame ON player_stats_events(frame);
 `

@@ -9,6 +9,7 @@ import Economy from "./Economy";
 import { loadFile } from "./loadFile";
 import { getDirectoryFiles } from "./getDirectoryFiles";
 import { useState } from "react";
+import { BigPicture } from "./BigPicture";
 
 
 console.log("Starting DB")
@@ -19,13 +20,16 @@ await db.exec(sqlInit)
 
 console.log("Opening directory");
 const loadedFiles = await getDirectoryFiles()
-//console.log(loadedFiles)
+loadedFiles.sort((a, b) => b.lastModified - a.lastModified)
+console.log(loadedFiles)
 
 console.log("Loading replay file");
 //const file = await fetch("/replay.SC2Replay")
-const file = loadedFiles[1];
-//console.log(file)
-await loadFile(db, file)
+for (let i = 0; i < loadedFiles.length && i < 20; i++) {
+  const file = loadedFiles[i];
+  //console.log(file)
+  await loadFile(db, file)
+}
 
 
 console.log("gogogo");
@@ -44,7 +48,8 @@ export default function App() {
   return (
     <PGliteProvider db={db}>
       {/*<Economy/>*/}
-      {<UnitCompositions />}
+      {/*<UnitCompositions />*/}
+      <BigPicture/>
     </PGliteProvider>)
 
 }

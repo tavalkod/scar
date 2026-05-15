@@ -1,6 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import init, { parse_replay, parse_replay2 } from "../wasm/pkg";
-import { getWriter, unitBornEvent, unitDiedEvent, unitDoneEvent, unitInitEvent, unitTypes } from "./sqlInit";
+import { getWriter, players, playerStateEvents, unitBornEvent, unitDiedEvent, unitDoneEvent, unitInitEvent, unitTypes } from "./sqlInit";
 await init();
 
 export async function loadFile(db: PGlite, file: File) {
@@ -9,6 +9,8 @@ export async function loadFile(db: PGlite, file: File) {
     const writeUnitInit = getWriter(db, "unit_init_event", unitInitEvent)
     const writeUnitDone = getWriter(db, "unit_done_event", unitDoneEvent)
     const writeUnitType = getWriter(db, "unit_types", unitTypes)
+    const writePlayer = getWriter(db, "players", players)
+    const writeStats = getWriter(db, "player_stats_events", playerStateEvents)
 
 
     const buffer = await file.arrayBuffer();
@@ -42,14 +44,32 @@ export async function loadFile(db: PGlite, file: File) {
             else if ("UnitDone" in eventEnum) {
                 writeUnitDone(preprocessUnitEvent(frame, eventEnum["UnitDone"]))
             }
+            else if ("PlayerStats" in eventEnum) {
+                const {player_id, stats} = eventEnum["PlayerStats"];
+                const res = {
+                    frame,
+                    player_id,
+                    replay_id,
+                    ...stats
+                }
+                writeStats(res);
+            }
         }
 
         for (const unit of replay.unit_data) {
-            const minerals = unit.cost?.["@minerals"];
-            const supply = unit.cost?.["@supply"];
-            const vespene = unit.cost?.["@vespene"];
+            const minerals = unit.cost?.["@minerals"] ?? 0;
+            const supply = unit.cost?.["@supply"] ?? 0;
+            const vespene = unit.cost?.["@vespene"] ?? 0;
             const str_id = unit["@id"]
             writeUnitType({str_id, minerals, supply, vespene, replay_id})
+        }
+
+        for (let i = 0; i < replay.details.player_list.length; i++) {
+            const player = replay.details.player_list[i];
+            const name = player.name;
+            const race = player.race;
+            const result = player.result;
+            writePlayer({player_id: i+1, name, race, result, replay_id})
         }
 
         await db.exec("COMMIT");
