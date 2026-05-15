@@ -2,15 +2,21 @@
 
 use wasm_bindgen::prelude::*;
 use serde_json::{json, Value};
-use s2protocol::game_events::ability::balance_data::json_handler::read_balance_data_from_included_assets;
+use s2protocol::game_events::ability::balance_data::json_handler::{read_balance_data_from_included_assets};
+use s2protocol::game_events::VersionedBalanceUnit;
+use serde::{Serialize, Deserialize};
 
-//use s2protocol::tracker_events::TrackerEvent;
+use s2protocol::tracker_events::TrackerEvent;
+use s2protocol::details::Details;
+use serde_wasm_bindgen;
+
 use s2protocol::versions::{
-    //read_details, 
+    read_details, 
     // read_message_events, 
     read_tracker_events,
     read_init_data
-};use s2protocol::tracker_events::{
+};
+use s2protocol::tracker_events::{
     UnitBornEvent,
     UnitInitEvent,
     UnitDiedEvent,
@@ -18,6 +24,51 @@ use s2protocol::versions::{
 };
 use nom_mpq::parser;
 
+#[derive(serde::Serialize)]
+struct Replay {
+    details: Details,
+    tracker_events: Vec<TrackerEvent>,
+    unit_data: Vec<VersionedBalanceUnit>
+}
+
+
+#[wasm_bindgen]
+pub fn parse_replay2(bytes: &[u8]) -> Result<String, JsValue> {
+    if let Ok((_, mpq)) = parser::parse(bytes) {
+
+        if 
+            let Ok(details) = read_details("", &mpq, &bytes) && 
+            let Ok(tracker_events) = read_tracker_events("", &mpq, &bytes) &&
+            let Ok(init_data) = read_init_data("", &mpq, bytes) &&
+            let Ok(balance_data) = read_balance_data_from_included_assets()
+        {
+            let replay_version = init_data.version;        
+            let unit_data = balance_data
+                .into_iter()
+                .filter(|((version, _unit_name), _unit)| *version == replay_version).
+                map(|(_, _unit)| _unit)
+                .collect::<Vec<_>>();
+            
+
+
+            let result = Replay {details, tracker_events, unit_data};
+            return Ok(serde_json::to_string_pretty(&result).unwrap());
+            /*if let Ok(v) = serde_wasm_bindgen::to_value(&result) {
+                return Ok(v);
+            }
+            else {
+                Ok("Error".into())
+            }*/
+        }
+        else {
+            Ok("Error".into())
+        }
+    }    
+    else {
+        Ok("Error".into())
+    }
+    
+}
 
 #[wasm_bindgen]
 pub fn parse_replay(bytes: &[u8]) -> Result<String, JsValue> {
@@ -45,15 +96,7 @@ pub fn parse_replay(bytes: &[u8]) -> Result<String, JsValue> {
             }).collect()
         }
 
-        if let Ok(balance_data) = read_balance_data_from_included_assets() {
-            let init_data = read_init_data("", &mpq, bytes).unwrap();
-            let replay_version = init_data.version;
 
-            let units_for_version = balance_data
-                .into_iter()
-                .filter(|((version, _unit_name), _unit)| *version == replay_version)
-                .collect::<std::collections::HashMap<_, _>>();
-        }
 
         //Ok(format!("{:#?}", details))
         let data = json!({
@@ -71,6 +114,8 @@ pub fn parse_replay(bytes: &[u8]) -> Result<String, JsValue> {
     }
     
 }
+
+
 
 pub fn unit_born_event_to_json(frame: u32, event: &UnitBornEvent) -> Value {
     json!({
@@ -187,7 +232,7 @@ pub fn unit_died_event_to_json(frame: u32, event: &UnitDiedEvent,) -> Value {
 }
 
 fn load_balance_data() {
-    
+
 }
 
 #[cfg(test)]

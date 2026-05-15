@@ -24,7 +24,7 @@ const loadedFiles = await getDirectoryFiles()
 console.log("Loading replay file");
 //const file = await fetch("/replay.SC2Replay")
 const file = loadedFiles[1];
-console.log(file)
+//console.log(file)
 await loadFile(db, file)
 
 

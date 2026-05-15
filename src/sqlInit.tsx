@@ -1,42 +1,70 @@
-export default `
-CREATE TYPE sc2_event_name AS ENUM (
-    'UnitBornEvent',
-    'UnitInitEvent',
-    'UnitDiedEvent'
-);
+export const unitBornEvent = {
+    replay_id: "TEXT NOT NULL",
+    frame: "INTEGER NOT NULL",
+    unit_id: "BIGINT",
 
-CREATE TABLE sc2_events (
-    id BIGSERIAL PRIMARY KEY,
+    unit_type_name: "TEXT",
+    control_pid: "INTEGER",
+    upkeep_pid: "INTEGER",
 
-    frame INTEGER NOT NULL,
-    second INTEGER NOT NULL,
-    event_name sc2_event_name NOT NULL,
+    x: "INTEGER",
+    y: "INTEGER",
+};
 
-    unit_id_index INTEGER,
-    unit_id_recycle INTEGER,
-    unit_id BIGINT,
-    unit_type_name TEXT,
+export const unitDiedEvent = {
+    replay_id: "TEXT NOT NULL",
+    frame: "INTEGER NOT NULL",
+    unit_id: "BIGINT",
+    
+    x: "INTEGER",
+    y: "INTEGER",
 
-    control_pid INTEGER,
-    upkeep_pid INTEGER,
+    killing_player_id: "INTEGER",
+    killing_unit_id: "INTEGER",
+};
 
-    killer_pid INTEGER,
-    killing_player_id INTEGER,
-    killing_unit_index INTEGER,
-    killing_unit_recycle INTEGER,
-    killing_unit_id BIGINT,
+export const unitInitEvent = unitBornEvent;
 
-    x INTEGER,
-    y INTEGER,
+export const unitDoneEvent = {
+    replay_id: "TEXT NOT NULL",
+    frame: "INTEGER NOT NULL",
+    unit_id: "BIGINT",
+};
 
-    raw JSONB NOT NULL DEFAULT '{}'::jsonb
-);
+export const unitTypeEvent = {
+    replay_id: "TEXT NOT NULL",
+    frame: "INTEGER NOT NULL",
+    unit_id: "BIGINT",
+    unit_type_name: "TEXT",
+};
 
-CREATE INDEX sc2_events_frame_idx ON sc2_events(frame);
-CREATE INDEX sc2_events_event_name_idx ON sc2_events(event_name);
-CREATE INDEX sc2_events_unit_id_idx ON sc2_events(unit_id);
+function createTableSql(name, dict) {
+    return `CREATE TABLE ${name} (
+    ` + `id BIGSERIAL PRIMARY KEY,` + Object.entries(dict).map(([field, type]) => `\t${field} ${type}`).join(",\n") + "); \n"
+}
 
+export function getWriter(db, name, dict: Record<string, string>) {
+    const q = `INSERT INTO ${name} (${Object.keys(dict).join(", ")}) VALUES (${Object.keys(dict).map((v, i) => "$" + (i+1)).join(", ")});`
+    return record => db.query(q,
+        Object.keys(dict).map(name => record[name])
+    )
+}
 
+export default 
+createTableSql("unit_born_event", unitBornEvent) + 
+"CREATE INDEX unit_born_event_frame ON unit_born_event(frame);" +
+"CREATE INDEX unit_born_event_unit_id ON unit_born_event(unit_id);" +
+createTableSql("unit_died_event", unitDiedEvent) + 
+"CREATE INDEX unit_died_event_frame ON unit_died_event(frame);" + 
+"CREATE INDEX unit_died_event_unit_id ON unit_died_event(unit_id);" +
+createTableSql("unit_init_event", unitInitEvent) + 
+"CREATE INDEX unit_init_event_frame ON unit_init_event(frame);" +
+"CREATE INDEX unit_init_event_unit_id ON unit_init_event(unit_id);" +
+createTableSql("unit_done_event", unitDoneEvent) + 
+"CREATE INDEX unit_done_event_frame ON unit_done_event(frame);" + 
+"CREATE INDEX unit_done_event_unit_id ON unit_done_event(unit_id);" + 
+
+`
 CREATE TABLE IF NOT EXISTS sc2_unit_types (
       type_id INTEGER PRIMARY KEY,
 

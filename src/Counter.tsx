@@ -120,7 +120,7 @@ group by pid, unit_type;
 
 `?.rows;
 
-console.log(unitRows)
+//console.log(unitRows)
 
     const kills = useLiveQuery<any>(`
 with born AS (
