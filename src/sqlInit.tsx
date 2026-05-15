@@ -38,6 +38,15 @@ export const unitTypeEvent = {
     unit_type_name: "TEXT",
 };
 
+export const unitTypes = {
+      str_id: "TEXT",
+      replay_id: "TEXT",
+
+      minerals: "INTEGER",
+      vespene: "INTEGER",
+      supply: "REAL",
+};
+
 function createTableSql(name, dict) {
     return `CREATE TABLE ${name} (
     ` + `id BIGSERIAL PRIMARY KEY,` + Object.entries(dict).map(([field, type]) => `\t${field} ${type}`).join(",\n") + "); \n"
@@ -50,41 +59,22 @@ export function getWriter(db, name, dict: Record<string, string>) {
     )
 }
 
-export default 
-createTableSql("unit_born_event", unitBornEvent) + 
-"CREATE INDEX unit_born_event_frame ON unit_born_event(frame);" +
-"CREATE INDEX unit_born_event_unit_id ON unit_born_event(unit_id);" +
-createTableSql("unit_died_event", unitDiedEvent) + 
-"CREATE INDEX unit_died_event_frame ON unit_died_event(frame);" + 
-"CREATE INDEX unit_died_event_unit_id ON unit_died_event(unit_id);" +
-createTableSql("unit_init_event", unitInitEvent) + 
-"CREATE INDEX unit_init_event_frame ON unit_init_event(frame);" +
-"CREATE INDEX unit_init_event_unit_id ON unit_init_event(unit_id);" +
-createTableSql("unit_done_event", unitDoneEvent) + 
-"CREATE INDEX unit_done_event_frame ON unit_done_event(frame);" + 
-"CREATE INDEX unit_done_event_unit_id ON unit_done_event(unit_id);" + 
-
-`
-CREATE TABLE IF NOT EXISTS sc2_unit_types (
-      type_id INTEGER PRIMARY KEY,
-
-      str_id TEXT,
-      name TEXT,
-      title TEXT,
-      race TEXT,
-
-      minerals INTEGER NOT NULL DEFAULT 0,
-      vespene INTEGER NOT NULL DEFAULT 0,
-      supply REAL NOT NULL DEFAULT 0,
-
-      is_building BOOLEAN NOT NULL DEFAULT FALSE,
-      is_worker BOOLEAN NOT NULL DEFAULT FALSE,
-      is_army BOOLEAN NOT NULL DEFAULT FALSE
-);
-
-CREATE INDEX sc2_unit_types_name_idx ON sc2_unit_types(name);
-CREATE INDEX sc2_unit_types_str_id_idx ON sc2_unit_types(str_id);
-CREATE INDEX sc2_unit_types_race_idx ON sc2_unit_types(race);
+export default `
+${createTableSql("unit_born_event", unitBornEvent)}
+CREATE INDEX unit_born_event_frame ON unit_born_event(frame);
+CREATE INDEX unit_born_event_unit_id ON unit_born_event(unit_id);
+${createTableSql("unit_died_event", unitDiedEvent)}
+CREATE INDEX unit_died_event_frame ON unit_died_event(frame);
+CREATE INDEX unit_died_event_unit_id ON unit_died_event(unit_id);
+${createTableSql("unit_init_event", unitInitEvent)}
+CREATE INDEX unit_init_event_frame ON unit_init_event(frame);
+CREATE INDEX unit_init_event_unit_id ON unit_init_event(unit_id);
+${createTableSql("unit_done_event", unitDoneEvent)}
+CREATE INDEX unit_done_event_frame ON unit_done_event(frame);
+CREATE INDEX unit_done_event_unit_id ON unit_done_event(unit_id);
+${createTableSql("unit_types", unitTypes)}
+CREATE INDEX unit_types_replay_id ON unit_types(replay_id);
+CREATE INDEX unit_types_str_id ON unit_types(str_id);
 
 
 CREATE TABLE IF NOT EXISTS player_stats_events (

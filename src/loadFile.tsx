@@ -1,6 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import init, { parse_replay, parse_replay2 } from "../wasm/pkg";
-import { getWriter, unitBornEvent, unitDiedEvent, unitDoneEvent, unitInitEvent } from "./sqlInit";
+import { getWriter, unitBornEvent, unitDiedEvent, unitDoneEvent, unitInitEvent, unitTypes } from "./sqlInit";
 await init();
 
 export async function loadFile(db: PGlite, file: File) {
@@ -8,6 +8,7 @@ export async function loadFile(db: PGlite, file: File) {
     const writeUnitDied = getWriter(db, "unit_died_event", unitDiedEvent)
     const writeUnitInit = getWriter(db, "unit_init_event", unitInitEvent)
     const writeUnitDone = getWriter(db, "unit_done_event", unitDoneEvent)
+    const writeUnitType = getWriter(db, "unit_types", unitTypes)
 
 
     const buffer = await file.arrayBuffer();
@@ -41,6 +42,14 @@ export async function loadFile(db: PGlite, file: File) {
             else if ("UnitDone" in eventEnum) {
                 writeUnitDone(preprocessUnitEvent(frame, eventEnum["UnitDone"]))
             }
+        }
+
+        for (const unit of replay.unit_data) {
+            const minerals = unit.cost?.["@minerals"];
+            const supply = unit.cost?.["@supply"];
+            const vespene = unit.cost?.["@vespene"];
+            const str_id = unit["@id"]
+            writeUnitType({str_id, minerals, supply, vespene, replay_id})
         }
 
         await db.exec("COMMIT");
