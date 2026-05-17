@@ -3,10 +3,11 @@ import { useState } from "react";
 import { useLiveQuery, } from "@electric-sql/pglite-react";
 
 import { legend } from "./legend";
+import { raw } from "@electric-sql/pglite/template";
 
 
 
-export function BigPicture() {
+export function BigPicture({metric, player}) {
 
 function formatTime(seconds: number) {
     seconds = Math.floor(seconds / 1.4)
@@ -15,6 +16,7 @@ function formatTime(seconds: number) {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+    const wrappedMetric = raw`${metric}`
 
     const data = useLiveQuery.sql`
 with data as (
@@ -22,15 +24,15 @@ with data as (
         p.name,
         s.replay_id,
         s.frame as frame,
-        s.workers_active_count as cnt
+        s.${wrappedMetric} as metric
     from
         player_stats_events s
     join players p
         on s.replay_id = p.replay_id and s.player_id = p.player_id
-    where p.name = 'Tavalkod'
+    where p.name = ${player}
 )
 --select * from data
-select 'line' as type, 'none' as symbol, array_agg(Array[frame/16, cnt] ORDER BY frame) as data 
+select 'line' as type, 'none' as symbol, array_agg(Array[frame/16, metric] ORDER BY frame) as data 
 from data
 group by replay_id
 

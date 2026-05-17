@@ -17,6 +17,10 @@ import {
     AppBar,
     Toolbar,
     ListItemButton,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import {
     CloudUpload,
@@ -62,6 +66,7 @@ import {
 } from '@mui/icons-material';
 import { useLiveQuery, usePGlite } from '@electric-sql/pglite-react';
 import { loadFile } from './loadFile';
+import { BigPicture } from './BigPicture';
 
 type Tabs = "uploadHub" | "tactics" | "bigPicture";
 
@@ -140,7 +145,7 @@ const Sidebar = ({ tab, setTab }: { tab: Tabs, setTab: (t: Tabs) => void }) => (
             {[
                 { text: 'My Replays', icon: <Terminal />, name: "uploadHub" },
                 { text: 'Tactics', icon: <Monitor />, name: "tactics" },
-                { text: 'Pig Picture', icon: <Analytics />, name: "bigPicture" },
+                { text: 'Big Picture', icon: <Analytics />, name: "bigPicture" },
             ].map((item) => (
                 <ListItemButton
                     onClick={() => setTab(item.name)}
@@ -213,7 +218,7 @@ const UploadHub = () => {
         }
     }
 
-    const replays = useLiveQuery.sql<{replay_id: string, data: {name: string, result: string, race: string}[] }>`
+    const replays = useLiveQuery.sql<{ replay_id: string, data: { name: string, result: string, race: string }[] }>`
     SELECT
     replay_id,
     JSON_AGG(
@@ -227,7 +232,6 @@ const UploadHub = () => {
     GROUP BY replay_id;
     `?.rows;
     if (!replays) return null
-    console.log(replays)
     return (<>
 
 
@@ -271,17 +275,17 @@ const UploadHub = () => {
                                 minWidth: 80, textAlign: 'center', mr: 3
                             }}>
                                 {/*<Typography variant="caption" display="block">RESULT</Typography>*/}
-                                {replayPlayers.data.map(({name, result} ) =>
-                                    <Typography variant="h6" sx={{ color: result === 'Win' ? 'primary.main' : 'error.main' }}>
+                                {replayPlayers.data.map(({ name, result }, idx) =>
+                                    <Typography key={idx} variant="h6" sx={{ color: result === 'Win' ? 'primary.main' : 'error.main' }}>
                                         {name}
                                     </Typography>)
                                 }
                             </Box>
 
                             <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="subtitle1">{replayPlayers.data.map(p => p.race?.[0]?.toUpperCase() ?? "").join("v")} {/*replay.map*/}</Typography>
-                            {/*<Typography variant="caption" color="text.secondary">2024.05.12 14:32 • {replay.time}</Typography>*/}
-                        </Box>
+                                <Typography variant="subtitle1">{replayPlayers.data.map(p => p.race?.[0]?.toUpperCase() ?? "").join("v")} {/*replay.map*/}</Typography>
+                                {/*<Typography variant="caption" color="text.secondary">2024.05.12 14:32 • {replay.time}</Typography>*/}
+                            </Box>
 
                             {/*<Box sx={{ display: 'flex', gap: 6, mr: 4 }}>
                             <Box sx={{ textAlign: 'center' }}>
@@ -304,22 +308,75 @@ const UploadHub = () => {
         {/*<Button fullWidth variant="text" sx={{ mt: 2, opacity: 0.5 }}>VIEW ALL REPLAYS</Button>*/}
     </>)
 }
-const StrategicIntel = () => {
-    const matches = [
+const BigPictureLayout = () => {
+    const [metric, setMetric] = useState("workers_active_count")
+    const [selectedPlayer, setSelectedPlayer] = useState("")
+    const possiblePlayers = useLiveQuery.sql<{ name: string }>`
+    SELECT distinct name
+    FROM players
+    `?.rows ?? [];
+
+    if (!possiblePlayers.map(({ name }) => name).includes(selectedPlayer) && selectedPlayer !== "") {
+        console.log("Reset")
+        setSelectedPlayer("")
+    }
+
+    /*const matches = [
         { result: 'WIN', map: 'GHOST RIVER LE', matchup: 'TvZ', length: '14:22', apm: 261 },
         { result: 'LOSS', map: 'POST-YOUTH LE', matchup: 'TvP', length: '08:45', apm: 210 },
         { result: 'WIN', map: 'OCEANBORN LE', matchup: 'TvT', length: '21:50', apm: 244 },
-    ];
+    ];*/
 
     return (
         <Box component="main" sx={{ flexGrow: 1, p: 4, bgcolor: '#10131a' }}>
             <Box sx={{ mb: 6, borderLeft: '4px solid #f26419', pl: 3 }}>
-                <Typography variant="overline" sx={{ opacity: 0.6 }}>SESSION SUMMARY</Typography>
+                <Typography variant="overline" sx={{ opacity: 0.6 }}>BIG PICTURE</Typography>
                 <Typography variant="h2">MULTI-REPLAY ANALYSIS</Typography>
             </Box>
+            <Grid container spacing={2}>                
+                <Box>
+                    <InputLabel id="big-picture-player-label">Observed Player</InputLabel>
+                    <Select
+                        labelId="big-picture-player-label"
+                        id="big-picture-player"
+                        value={selectedPlayer}
+                        label="Observed Player"
+                        onChange={(e) => setSelectedPlayer(e.target.value)}
+                    >
+                        {possiblePlayers.map(({ name }, idx) => <MenuItem key={idx} value={name}>{name}</MenuItem>)}
+                    </Select>
+                </Box>
+                <Box>
+                    <InputLabel id="big-picture-mode-label">Metric</InputLabel>
+                    <Select
+                        labelId="big-picture-mode-label"
+                        id="big-picture-mode"
+                        value={metric}
+                        label="Metric"
+                        onChange={(e) => setMetric(e.target.value)}
+                    >
+                        <MenuItem value={"minerals_current"}>Current Minerals</MenuItem>
+                        <MenuItem value={"vespene_current"}>Curent Vespene Gas</MenuItem>
+                        <MenuItem value={"minerals_collection_rate"}>Collection Rate of Minerals</MenuItem>
+                        <MenuItem value={"vespene_collection_rate"}>Collection Rate of Vespene Gas</MenuItem>
+                        <MenuItem value={"workers_active_count"}>Count of Active Workers</MenuItem>
+                    </Select>
+                </Box>
 
-            <Grid container spacing={3} sx={{ mb: 6 }}>
-                {/* Win Rate */}
+            </Grid>
+            {/*<FormControl fullWidth>
+                <Select
+                    labelId="big-picture-player-label"
+                    id="big-picture-player-label"
+                    value={selectedPlayer}
+                    label="ObservedPlayer"
+                    onChange={() => { e => setSelectedPlayer(e.target.value) }}
+                >
+                    {possiblePlayers.map(({ name }, idx) => <MenuItem key={idx} value={name}>{name}</MenuItem>)}
+                </Select>
+            </FormControl>*/}
+            {selectedPlayer && selectedPlayer !== "" && <BigPicture player={selectedPlayer} metric={metric} />}
+            {/*<Grid container spacing={3} sx={{ mb: 6 }}>
                 <Grid item xs={12} md={4}>
                     <Paper sx={{ p: 4, height: '100%', borderRadius: 0 }}>
                         <Typography variant="h6" sx={{ mb: 4 }}>OVERALL WIN RATE</Typography>
@@ -338,7 +395,6 @@ const StrategicIntel = () => {
                     </Paper>
                 </Grid>
 
-                {/* Performance Metrics */}
                 <Grid item xs={12} md={4}>
                     <Paper sx={{ p: 4, height: '100%', borderRadius: 0 }}>
                         <Typography variant="h6" sx={{ mb: 4 }}>MACRO PERFORMANCE</Typography>
@@ -366,7 +422,6 @@ const StrategicIntel = () => {
                     </Paper>
                 </Grid>
 
-                {/* Matchup Data */}
                 <Grid item xs={12} md={4}>
                     <Paper sx={{ p: 4, height: '100%', borderRadius: 0 }}>
                         <Typography variant="h6" sx={{ mb: 4 }}>MATCHUP DATA</Typography>
@@ -382,7 +437,6 @@ const StrategicIntel = () => {
                 </Grid>
             </Grid>
 
-            {/* Recent Critical Matches */}
             <Typography variant="h6" sx={{ mb: 3 }}>RECENT CRITICAL MATCHES</Typography>
             <TableContainer component={Paper} sx={{ borderRadius: 0, bgcolor: 'transparent' }}>
                 <Table>
@@ -413,7 +467,7 @@ const StrategicIntel = () => {
                         ))}
                     </TableBody>
                 </Table>
-            </TableContainer>
+            </TableContainer>*/}
         </Box>
     );
 };
@@ -427,7 +481,7 @@ const MacroAnalysis = () => {
                 <Typography variant="overline" color="primary" sx={{ display: 'block' }}>
                     LIVE ENGAGEMENT REPLAY // ANALYSIS MODE
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                {/*<Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
                     <Typography variant="h3" sx={{ fontWeight: 800 }}>PVZ ON ALCYONE</Typography>
                     <Paper sx={{ px: 2, py: 0.5, bgcolor: 'rgba(255,255,255,0.05)' }}>
                         <Typography variant="h6" sx={{ fontFamily: 'monospace' }}>00:14:32</Typography>
@@ -440,7 +494,7 @@ const MacroAnalysis = () => {
                     <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#c084fc' }} /> PLAYER 2: BLADES_OF_AIUR
                     </Typography>
-                </Box>
+                </Box>*/}
             </Box>
 
             <Tabs value={0} sx={{ mb: 4, borderBottom: '1px solid #363940' }}>
@@ -559,7 +613,7 @@ const Main = () => {
                     <TopBar />
                     {tab === "uploadHub" && <UploadHub />}
                     {tab === "tactics" && <MacroAnalysis />}
-                    {tab === "bigPicture" && <StrategicIntel />}
+                    {tab === "bigPicture" && <BigPictureLayout />}
 
                 </Box>
             </Box>

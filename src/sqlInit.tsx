@@ -60,7 +60,7 @@ export const playerStateEvents = {
     player_id: "INTEGER NOT NULL",
     replay_id: "TEXT",
 
-    minearls_current: "INTEGER",
+    minerals_current: "INTEGER",
     vespene_current: "INTEGER",
     minerals_collection_rate: "INTEGER",
     vespene_collection_rate: "INTEGER",
