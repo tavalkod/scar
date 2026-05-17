@@ -170,8 +170,8 @@ const Sidebar = ({ tab, setTab }: { tab: Tabs, setTab: (t: Tabs) => void }) => (
 
         <Divider sx={{ mb: 2, opacity: 0.1 }} />
         <List>
-            <ListItem button><ListItemIcon><Settings /></ListItemIcon><ListItemText primary="Settings" /></ListItem>
-            <ListItem button><ListItemIcon><Help /></ListItemIcon><ListItemText primary="Support" /></ListItem>
+            {/*<ListItem button><ListItemIcon><Settings /></ListItemIcon><ListItemText primary="Settings" /></ListItem>*/}
+            <ListItem href={`${import.meta.env.BASE_URL}legal.html`} button><ListItemIcon><Help /></ListItemIcon><a href={`${import.meta.env.BASE_URL}legal.html`}>Legal</a></ListItem>
         </List>
     </Drawer>
 );
@@ -610,7 +610,7 @@ const Main = () => {
             <Box sx={{ display: 'flex' }}>
                 <Sidebar tab={tab} setTab={setTab} />
                 <Box component="main" sx={{ flexGrow: 1, p: 4, mt: 8, bgcolor: '#10131a', minHeight: '100vh' }}>
-                    <TopBar />
+                    {/*<TopBar />*/}
                     {tab === "uploadHub" && <UploadHub />}
                     {tab === "tactics" && <MacroAnalysis />}
                     {tab === "bigPicture" && <BigPictureLayout />}
