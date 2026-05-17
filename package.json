@@ -6,7 +6,8 @@
   "scripts": {
     "wasm": "wasm-pack build wasm --target web --out-dir pkg",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run license && vite build",
+    "license": "npx generate-license-file --input package.json --output public/3rd-party.txt",
     "lint": "eslint .",
     "preview": "vite preview"
   },
