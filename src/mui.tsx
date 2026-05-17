@@ -60,6 +60,8 @@ import {
 
     WarningAmber
 } from '@mui/icons-material';
+import { useLiveQuery, usePGlite } from '@electric-sql/pglite-react';
+import { loadFile } from './loadFile';
 
 type Tabs = "uploadHub" | "tactics" | "bigPicture";
 
@@ -142,6 +144,7 @@ const Sidebar = ({ tab, setTab }: { tab: Tabs, setTab: (t: Tabs) => void }) => (
             ].map((item) => (
                 <ListItemButton
                     onClick={() => setTab(item.name)}
+                    disabled={item.name === "tactics"}
                     key={item.text}
                     sx={{
                         mb: 1,
@@ -149,8 +152,6 @@ const Sidebar = ({ tab, setTab }: { tab: Tabs, setTab: (t: Tabs) => void }) => (
                         color: item.name === tab ? 'common.black' : 'inherit',
                         '&:hover': { bgcolor: item.name === tab ? 'primary.dark' : 'rgba(255,255,255,0.05)' }
                     }}
-
-
                 >
                     <ListItemIcon sx={{ color: 'inherit' }}>{item.icon}</ListItemIcon>
                     <ListItemText primary={item.text} primaryTypographyProps={{ variant: 'overline' }} />
@@ -199,60 +200,90 @@ const TopBar = () => (
     </AppBar>
 );
 
-const replays = [
-    { matchup: 'TvZ', map: 'Alcyone LE', result: 'WIN', time: '14:55 MIN', apm: 312, sq: 88.4 },
-    { matchup: 'TvP', map: 'Post-Youth LE', result: 'LOSS', time: '08:22 MIN', apm: 285, sq: 74.2 },
-    { matchup: 'TvT', map: 'Site Delta LE', result: 'WIN', time: '24:12 MIN', apm: 299, sq: 91.0 },
-];
 
-const UploadHub = () => (<>
-    {/* Drop Zone */}
-    <Paper
-        sx={{
-            p: 8,
-            mb: 6,
-            textAlign: 'center',
-            borderStyle: 'dashed',
-            borderWidth: 2,
-            borderColor: 'rgba(255,255,255,0.1)',
-            background: 'linear-gradient(rgba(242, 100, 25, 0.02), transparent)'
-        }}
-    >
-        <CloudUpload sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} color="primary" />
-        <Typography variant="h5" gutterBottom>Drop Replays Here</Typography>
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-            <Button variant="contained">Browse Files</Button>
-            <Button variant="outlined" startIcon={<FolderOpen />}>Open Folder</Button>
-        </Box>
-    </Paper>
 
-    {/* Recent Replays List */}
-    <Typography variant="overline" color="primary">DATA STREAM</Typography>
-    <Typography variant="h6" sx={{ mb: 4 }}>Recent Replays</Typography>
+const UploadHub = () => {
+    const db = usePGlite()
 
-    <List>
-        {replays.map((replay, idx) => (
-            <Paper key={idx} sx={{ mb: 2, bgcolor: '#191c22', borderRadius: 0 }}>
-                <ListItem sx={{ py: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <Box sx={{
-                            px: 2, py: 1,
-                            border: '1px solid',
-                            borderColor: replay.result === 'WIN' ? 'primary.main' : 'error.main',
-                            minWidth: 80, textAlign: 'center', mr: 3
-                        }}>
-                            <Typography variant="caption" display="block">RESULT</Typography>
-                            <Typography variant="h6" sx={{ color: replay.result === 'WIN' ? 'primary.main' : 'error.main' }}>
-                                {replay.result}
-                            </Typography>
+    async function onBrowseFiles() {
+        const handels = await window.showOpenFilePicker({ multiple: true });
+        for (const h of handels) {
+            const f = await h.getFile();
+            await loadFile(db, f)
+        }
+    }
+
+    const replays = useLiveQuery.sql<{replay_id: string, data: {name: string, result: string, race: string}[] }>`
+    SELECT
+    replay_id,
+    JSON_AGG(
+        JSON_BUILD_OBJECT(
+        'name', name,
+        'result', result,
+        'race', race
+        )
+    ) AS data
+    FROM players
+    GROUP BY replay_id;
+    `?.rows;
+    if (!replays) return null
+    console.log(replays)
+    return (<>
+
+
+        {/* Drop Zone */}
+        <Paper
+            onDrop={(event) => { console.log(event) }}
+            sx={{
+                p: 8,
+                mb: 6,
+                textAlign: 'center',
+                borderStyle: 'dashed',
+                borderWidth: 2,
+                borderColor: 'rgba(255,255,255,0.1)',
+                background: 'linear-gradient(rgba(242, 100, 25, 0.02), transparent)'
+            }}
+        >
+            <CloudUpload sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} color="primary" />
+            <Typography variant="h5" gutterBottom>Drop Replays Here</Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                <Button
+                    variant="contained"
+                    onClick={onBrowseFiles}
+                >Browse Files</Button>
+                <Button variant="outlined" startIcon={<FolderOpen />}>Open Folder</Button>
+            </Box>
+        </Paper>
+
+        {/* Recent Replays List */}
+        <Typography variant="overline" color="primary">DATA STREAM</Typography>
+        <Typography variant="h6" sx={{ mb: 4 }}>Recent Replays</Typography>
+
+        <List>
+            {replays?.map?.((replayPlayers, idx) => (
+                <Paper key={idx} sx={{ mb: 2, bgcolor: '#191c22', borderRadius: 0 }}>
+                    <ListItem sx={{ py: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <Box sx={{
+                                px: 2, py: 1,
+                                border: '1px solid',
+                                /*borderColor: replay.result === 'WIN' ? 'primary.main' : 'error.main',*/
+                                minWidth: 80, textAlign: 'center', mr: 3
+                            }}>
+                                {/*<Typography variant="caption" display="block">RESULT</Typography>*/}
+                                {replayPlayers.data.map(({name, result} ) =>
+                                    <Typography variant="h6" sx={{ color: result === 'Win' ? 'primary.main' : 'error.main' }}>
+                                        {name}
+                                    </Typography>)
+                                }
+                            </Box>
+
+                            <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="subtitle1">{replayPlayers.data.map(p => p.race?.[0]?.toUpperCase() ?? "").join("v")} {/*replay.map*/}</Typography>
+                            {/*<Typography variant="caption" color="text.secondary">2024.05.12 14:32 • {replay.time}</Typography>*/}
                         </Box>
 
-                        <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="subtitle1">{replay.matchup} - {replay.map}</Typography>
-                            <Typography variant="caption" color="text.secondary">2024.05.12 14:32 • {replay.time}</Typography>
-                        </Box>
-
-                        <Box sx={{ display: 'flex', gap: 6, mr: 4 }}>
+                            {/*<Box sx={{ display: 'flex', gap: 6, mr: 4 }}>
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography variant="caption" color="text.secondary" display="block">APM</Typography>
                                 <Typography variant="h6">{replay.apm}</Typography>
@@ -261,33 +292,18 @@ const UploadHub = () => (<>
                                 <Typography variant="caption" color="text.secondary" display="block">SQ</Typography>
                                 <Typography variant="h6">{replay.sq}</Typography>
                             </Box>
+                        </Box>*/}
+
+                            {/*<IconButton><MoreVert /></IconButton>*/}
                         </Box>
+                    </ListItem>
+                </Paper>
+            ))}
+        </List>
 
-                        <IconButton><MoreVert /></IconButton>
-                    </Box>
-                </ListItem>
-            </Paper>
-        ))}
-    </List>
-
-    <Button fullWidth variant="text" sx={{ mt: 2, opacity: 0.5 }}>VIEW ALL REPLAYS</Button>
-
-    {/* Footer Stats */}
-    <Box sx={{
-        mt: 8, p: 2, border: '1px solid #363940',
-        display: 'flex', justifyContent: 'space-between',
-        fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.6
-    }}>
-        <Box sx={{ display: 'flex', gap: 4 }}>
-            <span>SYSTEM: STABLE</span>
-            <span>PACKETS: RECEIVING</span>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 4 }}>
-            <span>LATENCY: 14MS</span>
-            <span>UPTIME: 04:12:55</span>
-        </Box>
-    </Box>
-</>)
+        {/*<Button fullWidth variant="text" sx={{ mt: 2, opacity: 0.5 }}>VIEW ALL REPLAYS</Button>*/}
+    </>)
+}
 const StrategicIntel = () => {
     const matches = [
         { result: 'WIN', map: 'GHOST RIVER LE', matchup: 'TvZ', length: '14:22', apm: 261 },

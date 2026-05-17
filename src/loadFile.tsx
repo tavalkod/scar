@@ -4,6 +4,7 @@ import { getWriter, players, playerStateEvents, unitBornEvent, unitDiedEvent, un
 await init();
 
 export async function loadFile(db: PGlite, file: File) {
+    console.log(file)
     const writeUnitBorn = getWriter(db, "unit_born_event", unitBornEvent)
     const writeUnitDied = getWriter(db, "unit_died_event", unitDiedEvent)
     const writeUnitInit = getWriter(db, "unit_init_event", unitInitEvent)

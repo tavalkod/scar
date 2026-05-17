@@ -10,6 +10,7 @@ import { loadFile } from "./loadFile";
 import { getDirectoryFiles } from "./getDirectoryFiles";
 import { useState } from "react";
 import { BigPicture } from "./BigPicture";
+import Main from "./mui";
 
 
 console.log("Starting DB")
@@ -34,7 +35,7 @@ for (let i = 0; i < loadedFiles.length && i < 20; i++) {
 
 console.log("gogogo");
 export default function App() {
-  const [files, setFiles] = useState(loadedFiles);
+  /*const [files, setFiles] = useState(loadedFiles);
   
   if (!files) {
     return <button onClick={async () => {
@@ -43,13 +44,14 @@ export default function App() {
       }}>
       Select directory
       </button>
-  }
+  }*/
 
   return (
     <PGliteProvider db={db}>
       {/*<Economy/>*/}
       {/*<UnitCompositions />*/}
-      <BigPicture/>
+      {/*<BigPicture/>*/}
+      <Main/>
     </PGliteProvider>)
 
 }

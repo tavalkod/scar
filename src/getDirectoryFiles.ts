@@ -2,12 +2,29 @@ const DB_NAME = "app-directory";
 const STORE_NAME = "handles";
 const HANDLE_KEY = "directory";
 
-export async function getDirectoryFiles(): Promise<File[]> {
+export async function getDirectoryFilesOrShowDirectoryPicker(): Promise<File[]> {
   let dirHandle = await loadDirectoryHandle();
 
   if (!dirHandle || !(await hasReadPermission(dirHandle))) {
     dirHandle = await window.showDirectoryPicker();
     await saveDirectoryHandle(dirHandle);
+  }
+
+  const files: File[] = [];
+
+  for await (const [, handle] of dirHandle.entries()) {
+    if (handle.kind !== "file") continue;
+    files.push(await handle.getFile());
+  }
+
+  return files;
+}
+
+export async function getDirectoryFiles(): Promise<File[]> {
+  let dirHandle = await loadDirectoryHandle();
+
+  if (!dirHandle || !(await hasReadPermission(dirHandle))) {
+      return [];
   }
 
   const files: File[] = [];
