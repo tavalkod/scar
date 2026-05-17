@@ -36,7 +36,14 @@ jobs:
           node-version: lts/*
           cache: 'npm'
       - name: Install dependencies
-        run: npm ci
+        run: npm ci  
+      - name: Set up rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install wasm-pack
+      - run: wasm-pack build wasm --target web --out-dir pkg
       - name: Build
         run: npm run build
       - name: Setup Pages
