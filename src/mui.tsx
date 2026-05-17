@@ -248,8 +248,8 @@ const UploadHub = () => {
                 background: 'linear-gradient(rgba(242, 100, 25, 0.02), transparent)'
             }}
         >
-            <CloudUpload sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} color="primary" />
-            <Typography variant="h5" gutterBottom>Drop Replays Here</Typography>
+            {/*<CloudUpload sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} color="primary" />
+            <Typography variant="h5" gutterBottom>Drop Replays Here</Typography>*/}
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                 <Button
                     variant="contained"
