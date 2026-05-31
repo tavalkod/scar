@@ -7,7 +7,7 @@
     "wasm": "wasm-pack build wasm --target web --out-dir pkg",
     "dev": "vite",
     "build": "npm run license && vite build",
-    "license": "npx generate-license-file --input package.json --output public/3rd-party.txt",
+    "license": "npx generate-license-file --input package.json --output public/3rd-party-js.txt && cargo about generate wasm/about.hbs --manifest-path wasm/Cargo.toml > public/3rd-party-rs.html",
     "lint": "eslint .",
     "preview": "vite preview"
   },
