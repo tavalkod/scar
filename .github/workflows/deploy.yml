@@ -43,6 +43,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
       - run: cargo install wasm-pack
+      - run: cargo install --locked --features cli cargo-about
       - run: wasm-pack build wasm --target web --out-dir pkg
       - name: Build
         run: npm run build
